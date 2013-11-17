@@ -10,12 +10,13 @@ program main
 
   double precision :: sigmax(2),meanx(2)
   double precision :: val
+  double precision::pfail
   integer::nvar,i
 
 
   ! User input
 
-  x=(/-0.8,0.8/) ! Initial point
+  x=(/-1.8,1.8/) ! Initial point
   nvar=2
   sigmax(1)=0.1
   sigmax(2)=0.1
@@ -25,7 +26,7 @@ program main
 
   ! Stopping parameters
   
-  tolerance=1.0D-10
+  tolerance=1.0D-15
   nmax=1000 !set max iterations
 
   !Initialize
@@ -59,11 +60,19 @@ program main
      call invtransform(nvar,u,meanx,sigmax,x) ! map from u to x
      n=n+1
   end do
+
+  print*,"g:",g
+  print*,"grad:",grad
+  
   print*,"eps:",eps
   print*,"n :",n
   print*,"b*:",beta
   print*,"x*:",x
   print*,"u*:",u
+
+  call CDF(-beta,0.d0,1.d0,pfail)
+
+  print*,"pfail:",pfail
   
 end program main
 !++++++++++++++++++++++++++++++++++++++++++++++++
@@ -122,4 +131,35 @@ subroutine invtransform(nvar,u,meanx,sigmax,x)
   return
 end subroutine invtransform
 !++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine CDF(xin,xc,st,vout)
+  implicit none
+  double precision, intent(in)  :: xin,xc,st
+  double precision, intent(out) :: vout
+  double precision :: vtmp
+  !       vout = 0.5d0 * (1.d0 + erf( (xin-xc)/(st*dsqrt(2.d0)) ))
+  call ERF_MINE1( (xin-xc)/(st*dsqrt(2.d0)), vtmp )
+  vout = 0.5d0 * (1.d0 + vtmp)
+end subroutine CDF
+!++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine ERF_MINE1(xin,yout)
+  implicit none
+  double precision, intent(in)  :: xin
+  double precision, intent(out) :: yout
+  integer :: i,k,n
+  double precision :: vsum,kai
+  ! n is the order of Taylor
+  ! Maybe accurate within the range of [-4:4] with n=100
+  n = 100
+  vsum = 0.d0
+  do i=0,n
+     kai = 1.d0
+     do k=1,i
+        kai = kai * (-1.d0) * xin**2 / dble(k)
+     end do
+     vsum = vsum + kai*xin/dble(2*i+1)
+  end do
+  yout = vsum*2.d0/(dsqrt(3.141592653589793238d0))
 
+  if(yout.gt.1.d0)write(*,'(a,2e15.5)')'*ERF>1 ',xin,yout-1.d0
+end subroutine ERF_MINE1
+!++++++++++++++++++++++++++++++++++++++++++++++++
