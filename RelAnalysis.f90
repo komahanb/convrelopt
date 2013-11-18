@@ -1,29 +1,50 @@
 program main
-  
   implicit none
-  integer::nvar
+  integer,parameter::nvar=2
+  double precision :: sigmax(nvar),meanx(nvar) ! input mean and variance
+  double precision :: beta,x(nvar)
 
-  double precision :: x(2) ! design vector
-  double precision :: sigmax(2),meanx(2) ! input mean and variance
+  meanx(1)=-0.8
+  meanx(2)=0.8
+
+  sigmax(:)=0.1
   
+  call relanalysis(nvar,meanx,sigmax,beta,x)
+
+  print*,beta
+  print*,x
+
+
+end program main
+
+
+
+subroutine relanalysis(nvar,meanx,sigmax,beta,x)
+  implicit none
+
+  integer,intent(in)::nvar
+
+  double precision,intent(out) :: x(nvar) ! design vector
+  double precision,intent(in)  :: sigmax(nvar),meanx(nvar) ! input mean and variance
   integer:: n,nmax,i ! iterations
   double precision tolerance,eps ! tolerance and stopping
-  double precision :: u(2)
+  double precision :: u(nvar)
   double precision :: beta,betaold ! MPP
-  double precision :: g,grad(2) ! limit state function
+  double precision :: g,grad(nvar) ! limit state function
   double precision :: tempval
   double precision::pfail
 
   ! User input
 
-  x=(/-1.8,1.8/) ! Initial point
-  nvar=2
+!  x=(/-1.8,1.8/) ! Initial point
+!  nvar=2
 
-  sigmax(1)=0.1
-  sigmax(2)=0.1
+ ! sigmax(1)=0.1
+ ! sigmax(2)=0.1
 
-  meanx(1)=-1.8
-  meanx(2)=1.8
+  do i =1,nvar
+     x(i)=meanx(i)
+  end do
 
   ! Stopping parameters
   
@@ -45,8 +66,8 @@ program main
 
 
      call get_G(nvar,x,g)    !get G value in x space
-
      call get_dG(nvar,x,grad) ! get grad in x space
+
      do i=1,nvar
         grad(i)=grad(i)*sigmaX(i) ! convert grads to u space
      end do
@@ -67,25 +88,30 @@ program main
      n=n+1
   end do
 
-  print*,"g:",g
-  print*,"grad:",grad
-  print*,"eps:",eps
-  print*,"n :",n
-  print*,"b*:",beta
-  print*,"x*:",x
-  print*,"u*:",u
+  write(*,*),">> Beta found successfully"
 
-  ! Gradient in X-Space
-  do i=1,nvar
-     grad(i)=grad(i)/sigmaX(i) ! convert grads to u space
-  end do
-  !call get_dG(nvar,x,grad) ! get grad in x space
+!!$
+!!$  print*,"g:",g
+!!$  print*,"grad:",grad
+!!$  print*,"eps:",eps
+!!$  print*,"n :",n
+!!$  print*,"b*:",beta
+!!$  print*,"x*:",x
+!!$  print*,"u*:",u
+!!$
 
-  call CDF(-beta,0.d0,1.d0,pfail)
+!!$  ! Gradient in X-Space
+!!$  do i=1,nvar
+!!$     grad(i)=grad(i)/sigmaX(i) ! convert grads to u space
+!!$  end do
+!!$  !call get_dG(nvar,x,grad) ! get grad in x space
+!!$
+!!$  call CDF(-beta,0.d0,1.d0,pfail)
+!!$
+!!$  print*,"pfail:",pfail
 
-  print*,"pfail:",pfail
-  
-end program main
+  return
+end subroutine relanalysis
 !++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine get_G(nvar,x,g)
   implicit none
@@ -141,36 +167,4 @@ subroutine invtransform(nvar,u,meanx,sigmax,x)
 
   return
 end subroutine invtransform
-!++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine CDF(xin,xc,st,vout)
-  implicit none
-  double precision, intent(in)  :: xin,xc,st
-  double precision, intent(out) :: vout
-  double precision :: vtmp
-  !       vout = 0.5d0 * (1.d0 + erf( (xin-xc)/(st*dsqrt(2.d0)) ))
-  call ERF_MINE1( (xin-xc)/(st*dsqrt(2.d0)), vtmp )
-  vout = 0.5d0 * (1.d0 + vtmp)
-end subroutine CDF
-!++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine ERF_MINE1(xin,yout)
-  implicit none
-  double precision, intent(in)  :: xin
-  double precision, intent(out) :: yout
-  integer :: i,k,n
-  double precision :: vsum,kai
-  ! n is the order of Taylor
-  ! Maybe accurate within the range of [-4:4] with n=100
-  n = 100
-  vsum = 0.d0
-  do i=0,n
-     kai = 1.d0
-     do k=1,i
-        kai = kai * (-1.d0) * xin**2 / dble(k)
-     end do
-     vsum = vsum + kai*xin/dble(2*i+1)
-  end do
-  yout = vsum*2.d0/(dsqrt(3.141592653589793238d0))
-
-  if(yout.gt.1.d0)write(*,'(a,2e15.5)')'*ERF>1 ',xin,yout-1.d0
-end subroutine ERF_MINE1
 !++++++++++++++++++++++++++++++++++++++++++++++++
